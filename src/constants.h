@@ -35,6 +35,8 @@ const int ENCODER_COUNTS_PER_DEGREE = 1200 / 25;
 
 const long LOOP_DELAY = 1000;
 const long ADJUSTMENT_DELAY = 60000; // 1 minute
+const long SUN_PULSE_ANIM_DELAY = 100;
+const long JOYSTICK_DELAY = 200;
 
 const double LATITUDE = 42.95;
 const double LONGITUDE = -77.58;

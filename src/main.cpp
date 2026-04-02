@@ -131,7 +131,7 @@ void loop()
 
     unsigned long now = millis();
 
-    if (now - timing_sunpulse >= 100)
+    if (now - timing_sunpulse >= SUN_PULSE_ANIM_DELAY)
     {
 
         matrix.loadFrame(sunpulse[sunPulseIndex]);
@@ -160,7 +160,7 @@ void loop()
 
     //// Solar Tracking ////
 
-    if (now - timing_joystick >= (LOOP_DELAY / 5) && trackingState == TrackingState::WAITING)
+    if (now - timing_joystick >= JOYSTICK_DELAY && trackingState == TrackingState::WAITING)
     {
         handleJoystick();
         timing_joystick = now;
