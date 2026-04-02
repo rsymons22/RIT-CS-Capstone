@@ -5,157 +5,256 @@
 #include "Sensors\PowerMonitor.h"
 #include "Sensors\TempHumiditySensor.h"
 #include "Motors\LinearActuator.h"
-#include "Motors\StepperMotor.h"
+#include "Motors\ServoMotor.h"
+#include "SunTracking.h"
+#include "Communication.h"
+#include "Arduino_LED_Matrix.h"
 
+SunTracking sunTracking;
+Communication comm;
 I2CMux i2cMux;
 PowerMonitor powerMonitor;
 TempHumiditySensor dht;
-
 LinearActuator linearActuator;
-StepperMotor stepperMotor;
+ServoMotor servoMotor;
+ArduinoLEDMatrix matrix;
 
-MotorState motorState;
+// Status for various parts of the system. Generally, 0 is good and anything else is an error.
 int powerMonitorStatus;
 int ldrStatus;
 int gyroStatus;
+int rtcStatus;
+int commStatus;
 
-long stepperDelayUS;
-int loopCount = 0;
+unsigned long timing_comm = 0;
+unsigned long timing_adjustment = 0;
+unsigned long timing_joystick = 0;
+unsigned long timing_sunpulse = 0;
 
-unsigned long timing_motorMicros = 0;
-unsigned long timing_loopMicros = 0;
+int sunPulseIndex = 0;
+TrackingState trackingState;
 
-void stepperMotorControl(unsigned long now);
-void linearActuatorControl();
-void printData(unsigned long now);
+int isDynamicPanel;
+
+void handleJoystick();
 
 void setup()
 {
-  while (!Serial)
-    delay(10);
-  delay(5000);
+    while (!Serial)
+        delay(10);
+    delay(5000);
 
-  Serial.begin(9600);
-  Wire.begin();
+    Serial.begin(9600);
 
-  Serial.println("Setup Start...");
+    Wire.begin();
 
-  // Best setup before the other i2c devices due to some inconsistency in the Wire library.
-  powerMonitorStatus = powerMonitor.setup();
-  Serial.print("Power Monitor Status: ");
-  Serial.println(powerMonitorStatus);
+    matrix.begin();
+    matrix.loadFrame(LEDMATRIX_BOOTLOADER_ON);
 
-  ldrStatus = i2cMux.setupLDRs();
-  Serial.print("LDR Status: ");
-  Serial.println(ldrStatus);
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+    pinMode(JOYSTICK_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(PANEL_TYPE_PIN, INPUT_PULLUP);
+    isDynamicPanel = digitalRead(PANEL_TYPE_PIN);
 
-  gyroStatus = i2cMux.setupGyro();
-  Serial.print("Gyro Status: ");
-  Serial.println(gyroStatus);
+    Serial.print("Setup Start ");
+    Serial.print(isDynamicPanel ? "(Dynamic)" : "(Static)");
+    Serial.println("...");
 
-  dht.setup();
+    dht.setup();
 
-  stepperDelayUS = stepperMotor.getDelay(10);
+    // Best setup before the other i2c devices due to some inconsistency in the Wire library.
+    powerMonitorStatus = powerMonitor.setup();
+    Serial.print("Power Monitor Status: ");
+    Serial.println(powerMonitorStatus);
 
-  Serial.println("Setup Complete.");
+    ldrStatus = i2cMux.setupLDRs();
+    Serial.print("LDR Status: ");
+    Serial.println(ldrStatus);
+
+    if (isDynamicPanel)
+    {
+        gyroStatus = i2cMux.setupGyro();
+        Serial.print("Gyro Status: ");
+        Serial.println(gyroStatus);
+
+        servoMotor.setup();
+
+        linearActuator.setup();
+    }
+
+    commStatus = comm.setup();
+    Serial.print("Comm Status: ");
+    Serial.println(commStatus);
+
+    rtcStatus = !RTC.begin();
+    Serial.print("RTC Status: ");
+    Serial.println(rtcStatus);
+
+    comm.setupRTC();
+
+    Serial.println("Setup Complete.");
+}
+
+void flashLED(int num)
+{
+    for (int i = 0; i < num; i++)
+    {
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(20);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(20);
+    }
 }
 
 void loop()
 {
-  if (powerMonitorStatus != 0 || ldrStatus != 0 || gyroStatus != 0)
-  {
-    Serial.println("Error...");
-    delay(1000);
-    return;
-  }
+    if (powerMonitorStatus != 0 || ldrStatus != 0 || gyroStatus != 0 || rtcStatus != 0 || commStatus != 0)
+    {
+        Serial.println("Error...");
 
-  unsigned long now = micros();
+        if (powerMonitorStatus != 0)
+            flashLED(1);
+        else if (ldrStatus != 0)
+            flashLED(2);
+        else if (gyroStatus != 0)
+            flashLED(3);
+        else if (rtcStatus != 0)
+            flashLED(4);
+        else
+            flashLED(5);
 
-  // Manual control options
-  // stepperMotorControl(now);
-  // or
-  // linearActuatorControl();
+        delay(1000);
+        return;
+    }
+    comm.poll();
 
-  printData(now);
+    unsigned long now = millis();
+
+    if (now - timing_sunpulse >= 100)
+    {
+
+        matrix.loadFrame(sunpulse[sunPulseIndex]);
+        sunPulseIndex++;
+        if (sunPulseIndex == 8)
+            sunPulseIndex = 0;
+        timing_sunpulse = now;
+    }
+
+    if (now - timing_comm >= LOOP_DELAY)
+    {
+        if (isDynamicPanel)
+            comm.sendDataDynamic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
+                                 i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), servoMotor.getAzimuthFromCounter(), i2cMux.getZenith(),
+                                 powerMonitor.getVoltage(PM_PANEL_CHANNEL), powerMonitor.getCurrent(PM_PANEL_CHANNEL),
+                                 powerMonitor.getVoltage(PM_SYSTEM_CHANNEL), powerMonitor.getCurrent(PM_SYSTEM_CHANNEL));
+        else
+            comm.sendDataStatic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
+                                i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), powerMonitor.getVoltage(PM_PANEL_CHANNEL),
+                                powerMonitor.getCurrent(PM_PANEL_CHANNEL));
+        timing_comm = now;
+    }
+
+    if (!isDynamicPanel)
+        return;
+
+    //// Solar Tracking ////
+
+    if (now - timing_joystick >= (LOOP_DELAY / 5) && trackingState == TrackingState::WAITING)
+    {
+        handleJoystick();
+        timing_joystick = now;
+    }
+
+    if (trackingState == TrackingState::WAITING && now - timing_adjustment >= ADJUSTMENT_DELAY)
+    {
+        servoMotor.stop();
+        trackingState = TrackingState::ZENITH_SETUP;
+    }
+
+    if (trackingState == TrackingState::ZENITH_SETUP)
+    {
+        int zenithAlreadyHomed = sunTracking.trackZenithSetup(i2cMux, linearActuator);
+        trackingState = zenithAlreadyHomed ? TrackingState::AZIMUTH_SETUP : TrackingState::ZENITH;
+    }
+
+    if (trackingState == TrackingState::ZENITH)
+    {
+        if (sunTracking.trackZenith(i2cMux, linearActuator))
+            trackingState = TrackingState::AZIMUTH_SETUP;
+    }
+
+    if (trackingState == TrackingState::AZIMUTH_SETUP)
+    {
+        int azimuthAlreadyHomed = sunTracking.trackAzimuthSetup(i2cMux, servoMotor);
+        if (azimuthAlreadyHomed)
+        {
+            trackingState = TrackingState::WAITING;
+            timing_adjustment = millis();
+        }
+        else
+        {
+            trackingState = TrackingState::AZIMUTH;
+        }
+    }
+
+    if (trackingState == TrackingState::AZIMUTH && servoMotor.atPosition())
+    {
+        servoMotor.stop();
+        servoMotor.resetEncoderTracking();
+        trackingState = TrackingState::WAITING;
+        timing_adjustment = millis();
+    }
 }
 
-void stepperMotorControl(unsigned long now)
-{
-  if (Serial.available() > 0)
-  {
-    char c = Serial.read();
+bool isRelayLow = true;
 
-    if (c == 'R')
-      motorState = MotorState::CW;
-    else if (c == 'L')
-      motorState = MotorState::CCW;
+void handleJoystick()
+{
+    int x = analogRead(JOYSTICK_X_PIN);
+    int y = analogRead(JOYSTICK_Y_PIN);
+
+    if (x <= 10)
+        linearActuator.extend();
+    else if (x >= 1000)
+        linearActuator.retract();
     else
-      motorState = MotorState::STOP;
-  }
+        linearActuator.stop();
 
-  if (motorState != MotorState::STOP && now - timing_motorMicros >= stepperDelayUS)
-  {
-    timing_motorMicros = now;
-    stepperMotor.step(motorState);
-  }
-}
-
-void linearActuatorControl()
-{
-  if (Serial.available() > 0)
-  {
-    char c = Serial.read();
-    if (c == 'E')
-      linearActuator.extend();
-    else if (c == 'R')
-      linearActuator.retract();
+    if (y <= 10)
+        servoMotor.spin(1, 0.1);
+    else if (y >= 1000)
+        servoMotor.spin(0, 0.1);
     else
-      linearActuator.stop();
-  }
-}
+        servoMotor.stop();
 
-void printData(unsigned long now)
-{
-  if (now - timing_loopMicros >= LOOP_DELAY_US * 5)
-  {
-    timing_loopMicros = now;
+    // Home panel back to 180 degrees forward
+    if (digitalRead(JOYSTICK_BUTTON_PIN) == 0)
+    {
+        int diff = 180 - servoMotor.getAzimuthFromCounter();
 
-    Serial.print("Temperature: ");
-    Serial.print(dht.getTemperature());
-    Serial.print("°C | ");
+        servoMotor.initEncoderTracking(diff);
 
-    Serial.print("Humidity: ");
-    Serial.print(dht.getHumidity());
-    Serial.print("% | ");
+        if (diff >= 0)
+            servoMotor.spin(1, 0.1);
+        else
+            servoMotor.spin(0, 0.1);
 
-    i2cMux.printLDRData();
+        while (!servoMotor.atPosition())
+            ;
 
-    i2cMux.printGyroData();
+        servoMotor.stop();
+        servoMotor.resetEncoderTracking();
 
-    Serial.print("Azimuth: ");
-    Serial.print(i2cMux.getAzimuth());
-    Serial.print("° |");
-    Serial.print(" Zenith: ");
-    Serial.print(i2cMux.getZenith());
-    Serial.print("° | ");
+        linearActuator.retract();
 
-    Serial.print("Voltage (Channel 0): ");
-    Serial.print(powerMonitor.getVoltage(0));
-    Serial.print(" V | ");
+        // Panel can physically go lower, but makes ominous cracking noises when doing so and occasionally has a difficult time extending afterwards.
+        while (i2cMux.getZenith() > ZENITH_MIN)
+            ;
+        linearActuator.stop();
 
-    Serial.print("Current (Channel 0): ");
-    Serial.print(powerMonitor.getCurrent(0));
-    Serial.print(" A | ");
-
-    Serial.print("Voltage (Channel 1): ");
-    Serial.print(powerMonitor.getVoltage(1));
-    Serial.print(" V | ");
-
-    Serial.print("Current (Channel 1): ");
-    Serial.print(powerMonitor.getCurrent(1));
-    Serial.print(" A");
-
-    Serial.println();
-    Serial.println();
-  }
+        // This will probably be used when the operator wants to cease data collection for a day.
+        // This delay gives a pause to allow the operator to power down the system before it starts tracking again.
+        delay(10000);
+    }
 }
