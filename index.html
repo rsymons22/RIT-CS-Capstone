@@ -1,0 +1,10 @@
+<script>
+    async function loadData() {
+        const res = await fetch("http://192.168.1.162/latest")
+        const data = await res.json()
+
+        console.log(data)
+    }
+
+    loadData()
+</script>
