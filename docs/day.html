@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Daily Power Data</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <h1 id="title"></h1>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const date = params.get("date");
+
+        if (!date) {
+            document.body.innerHTML = "<h2>Error: No date specified</h2>";
+            throw new Error("No date provided");
+        }
+
+        document.getElementById("title").textContent = `Solar Data: ${date}`;
+    </script>
+
+    <h2>Static System Power (15 Minute Bins)</h2>
+    <canvas id="staticPowerChart" width="800" height="350"></canvas>
+
+    <h2>Dynamic System Power (15 Minute Bins)</h2>
+    <canvas id="dynamicPowerChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side Power (15 Minute Bins)</h2>
+    <canvas id="combinedPowerChart" width="800" height="350"></canvas>
+
+    <h2>Dynamic Azimuth (1 Minute Bins)</h2>
+    <canvas id="dynamicAzimuthChart" width="800" height="350"></canvas>
+
+    <h2>Zenith Azimuth (1 Minute Bins)</h2>
+    <canvas id="dynamicZenithChart" width="800" height="350"></canvas>
+
+    <h2>Static System Average LDR (1 Minute Bins)</h2>
+    <canvas id="staticLDRChart" width="800" height="350"></canvas>
+
+    <h2>Dynamic System Average LDR (1 Minute Bins)</h2>
+    <canvas id="dynamicLDRChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side Average LDR (15 Minute Bins)</h2>
+    <canvas id="combinedLDRChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side LDR Horizontal Difference (15 Minute Bins)</h2>
+    <canvas id="horizLDRChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side LDR Vertical Difference (15 Minute Bins)</h2>
+    <canvas id="vertLDRChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side Temperature (15 Minute Bins)</h2>
+    <canvas id="temperatureChart" width="800" height="350"></canvas>
+
+    <h2>Side-by-Side Humidity (15 Minute Bins)</h2>
+    <canvas id="humidityChart" width="800" height="350"></canvas>
+
+    <script>
+        Promise.all([
+            fetch(`../data/static_${date}_bin15.json`).then(res => res.json()),
+            fetch(`../data/dynamic_${date}_bin15.json`).then(res => res.json()),
+            fetch(`../data/static_${date}_bin1.json`).then(res => res.json()),
+            fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json())
+        ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1]) => {
+            const timestampMap = (data) => data.map(d => new Date(d.bin_start * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+            function toMap(data, key) {
+                const map = {};
+                data.forEach(d => {
+                    map[d.bin_start] = d[key];
+                });
+                return map;
+            }
+
+            new Chart(document.getElementById("staticPowerChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataStaticBin15),
+                    datasets: [{
+                        label: "Power (W)",
+                        data: dataStaticBin15.map(d => d.avg_power),
+                        backgroundColor: 'blue'
+                    }]
+                },
+            });
+
+            new Chart(document.getElementById("dynamicPowerChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataDynamicBin15),
+                    datasets: [{
+                        label: "Power (W)",
+                        data: dataDynamicBin15.map(d => d.avg_power),
+                        backgroundColor: 'orange'
+                    }]
+                },
+            });
+
+            const bin15TimestampUnion = [...new Set([
+                ...dataStaticBin15.map(d => d.bin_start),
+                ...dataDynamicBin15.map(d => d.bin_start)
+            ])].sort();
+
+            const bin15Labels = bin15TimestampUnion.map(t => new Date(t * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))
+
+            const staticPowerMap = toMap(dataStaticBin15, "avg_power");
+            const dynamicPowerMap = toMap(dataDynamicBin15, "avg_power");
+
+            new Chart(document.getElementById("combinedPowerChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Power (W)",
+                            data: bin15TimestampUnion.map(ts => staticPowerMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Power (W)",
+                            data: bin15TimestampUnion.map(ts => dynamicPowerMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+            new Chart(document.getElementById("dynamicAzimuthChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataDynamicBin1),
+                    datasets: [{
+                        label: "Azimuth (°)",
+                        data: dataDynamicBin1.map(d => d.avg_azimuth),
+                        backgroundColor: 'orange'
+                    }]
+                },
+            });
+
+            new Chart(document.getElementById("dynamicZenithChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataDynamicBin1),
+                    datasets: [{
+                        label: "Zenith (°)",
+                        data: dataDynamicBin1.map(d => d.avg_zenith),
+                        backgroundColor: 'orange'
+                    }]
+                },
+            });
+
+
+            new Chart(document.getElementById("staticLDRChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataStaticBin1),
+                    datasets: [{
+                        label: "Illuminance (lx)",
+                        data: dataStaticBin1.map(d => d.avg_ldr),
+                        backgroundColor: 'blue'
+                    }]
+                },
+            });
+
+            new Chart(document.getElementById("dynamicLDRChart"), {
+                type: "bar",
+                data: {
+                    labels: timestampMap(dataDynamicBin1),
+                    datasets: [{
+                        label: "Illuminance (lx)",
+                        data: dataDynamicBin1.map(d => d.avg_ldr),
+                        backgroundColor: 'orange'
+                    }]
+                },
+            });
+
+            const staticLDRMap = toMap(dataStaticBin15, "avg_ldr");
+            const dynamicLDRMap = toMap(dataDynamicBin15, "avg_ldr");
+
+            new Chart(document.getElementById("combinedLDRChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Illuminance (lx)",
+                            data: bin15TimestampUnion.map(ts => staticLDRMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Illuminance (lx)",
+                            data: bin15TimestampUnion.map(ts => dynamicLDRMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+            const staticHorizLDRMap = toMap(dataStaticBin15, "avg_horizLDRDiff");
+            const dynamicHorizLDRMap = toMap(dataDynamicBin15, "avg_horizLDRDiff");
+
+            new Chart(document.getElementById("horizLDRChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Illuminance Difference (lx)",
+                            data: bin15TimestampUnion.map(ts => staticHorizLDRMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Illuminance Difference (lx)",
+                            data: bin15TimestampUnion.map(ts => dynamicHorizLDRMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+            const staticVertLDRMap = toMap(dataStaticBin15, "avg_vertLDRDiff");
+            const dynamicVertLDRMap = toMap(dataDynamicBin15, "avg_vertLDRDiff");
+
+            new Chart(document.getElementById("vertLDRChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Illuminance Difference (lx)",
+                            data: bin15TimestampUnion.map(ts => staticVertLDRMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Illuminance Difference (lx)",
+                            data: bin15TimestampUnion.map(ts => dynamicVertLDRMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+            const staticTempMap = toMap(dataStaticBin15, "avg_temp");
+            const dynamicTempMap = toMap(dataDynamicBin15, "avg_temp");
+
+            new Chart(document.getElementById("temperatureChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Panel Temperature (°C)",
+                            data: bin15TimestampUnion.map(ts => staticTempMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Panel Temperature (°C)",
+                            data: bin15TimestampUnion.map(ts => dynamicTempMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+            const staticHumidityMap = toMap(dataStaticBin15, "avg_humidity");
+            const dynamicHumidityMap = toMap(dataDynamicBin15, "avg_humidity");
+
+            new Chart(document.getElementById("humidityChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Static Panel Humidity (%)",
+                            data: bin15TimestampUnion.map(ts => staticHumidityMap[ts] ?? null),
+                            backgroundColor: 'blue'
+                        },
+                        {
+                            label: "Dynamic Panel Humidity (%)",
+                            data: bin15TimestampUnion.map(ts => dynamicHumidityMap[ts] ?? null),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                }
+            });
+
+        }).catch(err => {
+            document.body.innerHTML = `<h2>Error loading data on ${date}</h2>`;
+            console.error(err);
+        });
+    </script>
+
+</body>
+
+</html>
