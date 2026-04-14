@@ -58,12 +58,18 @@
     <h2>Side-by-Side Humidity (15 Minute Bins)</h2>
     <canvas id="humidityChart" width="800" height="350"></canvas>
 
+    <!-- Code for local fetching -->
+    <!-- fetch(`../data/static_${date}_bin15.json`).then(res => res.json()),
+    fetch(`../data/dynamic_${date}_bin15.json`).then(res => res.json()),
+    fetch(`../data/static_${date}_bin1.json`).then(res => res.json()),
+    fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json()) -->
+
     <script>
         Promise.all([
-            fetch(`../data/static_${date}_bin15.json`).then(res => res.json()),
-            fetch(`../data/dynamic_${date}_bin15.json`).then(res => res.json()),
-            fetch(`../data/static_${date}_bin1.json`).then(res => res.json()),
-            fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json())
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin15.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin15.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin1.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin1.json`).then(res => res.json())
         ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1]) => {
             const timestampMap = (data) => data.map(d => new Date(d.bin_start * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
             function toMap(data, key) {
