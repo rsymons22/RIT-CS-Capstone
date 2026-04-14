@@ -37,7 +37,7 @@
     <h2>Dynamic Azimuth (1 Minute Bins)</h2>
     <canvas id="dynamicAzimuthChart" width="800" height="350"></canvas>
 
-    <h2>Zenith Azimuth (1 Minute Bins)</h2>
+    <h2>Dynamic Zenith (1 Minute Bins)</h2>
     <canvas id="dynamicZenithChart" width="800" height="350"></canvas>
 
     <h2>Static System Average LDR (1 Minute Bins)</h2>
@@ -68,13 +68,6 @@
     fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json()),
     fetch(`../data/static_${date}_raw.json`).then(res => res.json()),
     fetch(`../data/dynamic_${date}_raw.json`).then(res => res.json()) -->
-
-    <!-- Promise.all([
-            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin15.json`).then(res => res.json()),
-            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin15.json`).then(res => res.json()),
-            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin1.json`).then(res => res.json()),
-            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin1.json`).then(res => res.json())
-        ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1]) => { -->
 
     <script>
         Promise.all([
