@@ -3,6 +3,7 @@
 
 <head>
     <title>Daily Power Data</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -30,6 +31,8 @@
 
     <h2>Side-by-Side Power (15 Minute Bins)</h2>
     <canvas id="combinedPowerChart" width="800" height="350"></canvas>
+
+    <p id="energyParagraph"></p>
 
     <h2>Dynamic Azimuth (1 Minute Bins)</h2>
     <canvas id="dynamicAzimuthChart" width="800" height="350"></canvas>
@@ -62,15 +65,26 @@
     <!-- fetch(`../data/static_${date}_bin15.json`).then(res => res.json()),
     fetch(`../data/dynamic_${date}_bin15.json`).then(res => res.json()),
     fetch(`../data/static_${date}_bin1.json`).then(res => res.json()),
-    fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json()) -->
+    fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json()),
+    fetch(`../data/static_${date}_raw.json`).then(res => res.json()),
+    fetch(`../data/dynamic_${date}_raw.json`).then(res => res.json()) -->
+
+    <!-- Promise.all([
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin15.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin15.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin1.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin1.json`).then(res => res.json())
+        ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1]) => { -->
 
     <script>
         Promise.all([
             fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin15.json`).then(res => res.json()),
             fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin15.json`).then(res => res.json()),
             fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_bin1.json`).then(res => res.json()),
-            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin1.json`).then(res => res.json())
-        ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1]) => {
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_bin1.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/static_${date}_raw.json`).then(res => res.json()),
+            fetch(`https://raw.githubusercontent.com/rsymons22/RIT-CS-Capstone/refs/heads/main/data/dynamic_${date}_raw.json`).then(res => res.json()),
+        ]).then(([dataStaticBin15, dataDynamicBin15, dataStaticBin1, dataDynamicBin1, dataStaticRaw, dataDynamicRaw]) => {
             const timestampMap = (data) => data.map(d => new Date(d.bin_start * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
             function toMap(data, key) {
                 const map = {};
@@ -132,6 +146,38 @@
                     ]
                 }
             });
+
+            const staticPowerGen = dataStaticRaw.map(d => (d.panelV * d.panelA))
+            staticEnergyGen = 0
+
+            for (let i = 0; i < staticPowerGen.length - 1; i++) {
+                staticEnergyGen += ((staticPowerGen[i] + staticPowerGen[i + 1]) / 2) * 1 // 1 second intervals
+            }
+
+            const dynamicPowerGen = dataDynamicRaw.map(d => (d.panelV * d.panelA))
+            dynamicEnergyGen = 0
+
+            for (let i = 0; i < dynamicPowerGen.length - 1; i++) {
+                dynamicEnergyGen += ((dynamicPowerGen[i] + dynamicPowerGen[i + 1]) / 2) * 1 // 1 second intervals
+            }
+
+            const dynamicPowerCon = dataDynamicRaw.map(d => (d.systemV * d.systemA))
+            dynamicEnergyCon = 0
+
+            for (let i = 0; i < dynamicPowerCon.length - 1; i++) {
+                dynamicEnergyCon += ((dynamicPowerCon[i] + dynamicPowerCon[i + 1]) / 2) * 1 // 1 second intervals
+            }
+
+            staticGenKWH = staticEnergyGen / 3600000
+            dynamicGenKWH = dynamicEnergyGen / 3600000
+            dynamicConKWH = dynamicEnergyCon / 3600000
+
+            document.getElementById("energyParagraph").textContent = `
+                Static Generated: ${(staticGenKWH).toFixed(5)} kWh | 
+                Dynamic Generated: ${(dynamicGenKWH).toFixed(5)} kWh |
+                Dynamic Consumed: ${(dynamicConKWH).toFixed(5)} kWh |
+                Dynamic Overall: ${(dynamicGenKWH - dynamicConKWH).toFixed(5)} kWh
+            `
 
             new Chart(document.getElementById("dynamicAzimuthChart"), {
                 type: "bar",
