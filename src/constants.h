@@ -16,7 +16,7 @@ const int TEMPHUMIDITY_PIN = 5;
 const int LA_RETRACT_PIN = 6;
 const int LA_EXTEND_PIN = 7;
 const int LA_SPEED_PIN = 9;
-const int PANEL_TYPE_PIN = 13;
+const int PANEL_TYPE_PIN = 10;
 
 // Analog Pins
 const int JOYSTICK_Y_PIN = 14;
@@ -32,6 +32,7 @@ const int GYRO_CHANNEL = 7;
 // Encoder counts per rotation / # of teeth on the gear attached to encoder.
 // Turntable gear has 360 teeth.
 const int ENCODER_COUNTS_PER_DEGREE = 1200 / 25;
+const int ENCODER_MINMAX = 90 * ENCODER_COUNTS_PER_DEGREE;
 
 const long LOOP_DELAY = 1000;
 const long ADJUSTMENT_DELAY = 60000; // 1 minute

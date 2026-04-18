@@ -6,6 +6,7 @@
 #include "Sensors\I2CMux.h"
 #include "Motors\LinearActuator.h"
 #include "Motors\ServoMotor.h"
+#include "Communication.h"
 
 enum TrackingState
 {
@@ -26,9 +27,9 @@ private:
     bool panelSpinsCW;
 
 public:
-    double getAzimuth();
-    double getZenith();
-    bool trackZenithSetup(I2CMux &i2cMux, LinearActuator &la);
+    double getAzimuth(unsigned long time);
+    double getZenith(unsigned long time);
+    bool trackZenithSetup(I2CMux &i2cMux, LinearActuator &la, Communication &comm);
     bool trackZenith(I2CMux &i2cMux, LinearActuator &la);
-    bool trackAzimuthSetup(I2CMux &i2cMux, ServoMotor &sm);
+    bool trackAzimuthSetup(I2CMux &i2cMux, ServoMotor &sm, Communication &comm);
 };

@@ -9,6 +9,7 @@
 #include "SunTracking.h"
 #include "Communication.h"
 #include "Arduino_LED_Matrix.h"
+#include "I2C_SOFTRESET.h"
 
 SunTracking sunTracking;
 Communication comm;
@@ -23,18 +24,20 @@ ArduinoLEDMatrix matrix;
 int powerMonitorStatus;
 int ldrStatus;
 int gyroStatus;
-int rtcStatus;
 int commStatus;
 
 unsigned long timing_comm = 0;
 unsigned long timing_adjustment = 0;
 unsigned long timing_joystick = 0;
 unsigned long timing_sunpulse = 0;
+unsigned long timing_wifiStrength = 0;
 
-int sunPulseIndex = 0;
+int sunPulseIndex;
 TrackingState trackingState;
 
 int isDynamicPanel;
+
+bool isRelayHigh;
 
 void handleJoystick();
 
@@ -83,17 +86,19 @@ void setup()
         linearActuator.setup();
     }
 
-    commStatus = comm.setup();
+    commStatus = comm.setup(isDynamicPanel);
     Serial.print("Comm Status: ");
     Serial.println(commStatus);
 
-    rtcStatus = !RTC.begin();
-    Serial.print("RTC Status: ");
-    Serial.println(rtcStatus);
-
-    comm.setupRTC();
-
     Serial.println("Setup Complete.");
+
+    char buffer[100];
+    if (isDynamicPanel)
+        snprintf(buffer, sizeof(buffer), "Setup: Power Monitor=%i | LDRs=%i | Gyro=%i | Comm=%i", powerMonitorStatus, ldrStatus, gyroStatus, commStatus);
+    else
+        snprintf(buffer, sizeof(buffer), "Setup: Power Monitor=%i | LDRs=%i | Comm=%i", powerMonitorStatus, ldrStatus, commStatus);
+
+    comm.sendLog(buffer);
 }
 
 void flashLED(int num)
@@ -101,15 +106,41 @@ void flashLED(int num)
     for (int i = 0; i < num; i++)
     {
         digitalWrite(LED_BUILTIN, HIGH);
-        delay(20);
+        delay(500);
         digitalWrite(LED_BUILTIN, LOW);
-        delay(20);
+        delay(500);
+    }
+}
+
+void assertI2CFunctions()
+{
+    Wire.beginTransmission(I2C_MUX_ADDR); // Valid address
+    byte error = Wire.endTransmission();  // returns 0 when device ACKs
+
+    if (error != 0)
+    {
+        comm.sendLog("Detected i2c error (NO ACK), attempting restart.");
+        Wire.end();
+        I2CSoftReset(WIRE_SDA_PIN, WIRE_SCL_PIN);
+        Wire.begin();
+        comm.sendLog("i2c reset complete.");
+    }
+
+    Wire.beginTransmission(3); // 3 is NOT a used address and should NOT ACK
+    error = Wire.endTransmission();
+    if (error == 0)
+    {
+        comm.sendLog("Detected i2c error (ACK), attempting restart.");
+        Wire.end();
+        I2CSoftReset(WIRE_SDA_PIN, WIRE_SCL_PIN);
+        Wire.begin();
+        comm.sendLog("i2c reset complete.");
     }
 }
 
 void loop()
 {
-    if (powerMonitorStatus != 0 || ldrStatus != 0 || gyroStatus != 0 || rtcStatus != 0 || commStatus != 0)
+    if (powerMonitorStatus != 0 || ldrStatus != 0 || gyroStatus != 0 || commStatus != 0)
     {
         Serial.println("Error...");
 
@@ -119,10 +150,8 @@ void loop()
             flashLED(2);
         else if (gyroStatus != 0)
             flashLED(3);
-        else if (rtcStatus != 0)
-            flashLED(4);
         else
-            flashLED(5);
+            flashLED(4);
 
         delay(1000);
         return;
@@ -133,7 +162,6 @@ void loop()
 
     if (now - timing_sunpulse >= SUN_PULSE_ANIM_DELAY)
     {
-
         matrix.loadFrame(sunpulse[sunPulseIndex]);
         sunPulseIndex++;
         if (sunPulseIndex == 8)
@@ -143,15 +171,23 @@ void loop()
 
     if (now - timing_comm >= LOOP_DELAY)
     {
+        assertI2CFunctions();
+        int res;
         if (isDynamicPanel)
-            comm.sendDataDynamic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
-                                 i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), servoMotor.getAzimuthFromCounter(), i2cMux.getZenith(),
-                                 powerMonitor.getVoltage(PM_PANEL_CHANNEL), powerMonitor.getCurrent(PM_PANEL_CHANNEL),
-                                 powerMonitor.getVoltage(PM_SYSTEM_CHANNEL), powerMonitor.getCurrent(PM_SYSTEM_CHANNEL));
+            res = comm.sendDataDynamic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
+                                       i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), servoMotor.getAzimuthFromCounter(), i2cMux.getZenith(),
+                                       powerMonitor.getVoltage(PM_PANEL_CHANNEL), powerMonitor.getCurrent(PM_PANEL_CHANNEL),
+                                       powerMonitor.getVoltage(PM_SYSTEM_CHANNEL), powerMonitor.getCurrent(PM_SYSTEM_CHANNEL));
         else
-            comm.sendDataStatic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
-                                i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), powerMonitor.getVoltage(PM_PANEL_CHANNEL),
-                                powerMonitor.getCurrent(PM_PANEL_CHANNEL));
+            res = comm.sendDataStatic(dht.getTemperature(), dht.getHumidity(), i2cMux.getTopLeftLDRLight(), i2cMux.getBotLeftLDRLight(),
+                                      i2cMux.getTopRightLDRLight(), i2cMux.getBotRightLDRLight(), powerMonitor.getVoltage(PM_PANEL_CHANNEL),
+                                      powerMonitor.getCurrent(PM_PANEL_CHANNEL));
+
+        if (res == 0 || WiFi.status() != WL_CONNECTED)
+        {
+            WiFi.begin(SECRET_SSID, SECRET_PASS);
+            comm.sendLog("Wifi Disconnected, Reconnected.");
+        }
         timing_comm = now;
     }
 
@@ -170,30 +206,43 @@ void loop()
     {
         servoMotor.stop();
         trackingState = TrackingState::ZENITH_SETUP;
+        comm.sendLog("Tracking State -> Zenith Setup");
     }
 
     if (trackingState == TrackingState::ZENITH_SETUP)
     {
-        int zenithAlreadyHomed = sunTracking.trackZenithSetup(i2cMux, linearActuator);
-        trackingState = zenithAlreadyHomed ? TrackingState::AZIMUTH_SETUP : TrackingState::ZENITH;
+        if (sunTracking.trackZenithSetup(i2cMux, linearActuator, comm))
+        {
+            comm.sendLog("Zenith already homed. Tracking State -> Azimuth Setup");
+            trackingState = TrackingState::AZIMUTH_SETUP;
+        }
+        else
+        {
+            comm.sendLog("Tracking State -> Zenith");
+            trackingState = TrackingState::ZENITH;
+        }
     }
 
     if (trackingState == TrackingState::ZENITH)
     {
         if (sunTracking.trackZenith(i2cMux, linearActuator))
+        {
+            comm.sendLog("Tracking State -> Azimuth Setup");
             trackingState = TrackingState::AZIMUTH_SETUP;
+        }
     }
 
     if (trackingState == TrackingState::AZIMUTH_SETUP)
     {
-        int azimuthAlreadyHomed = sunTracking.trackAzimuthSetup(i2cMux, servoMotor);
-        if (azimuthAlreadyHomed)
+        if (sunTracking.trackAzimuthSetup(i2cMux, servoMotor, comm))
         {
+            comm.sendLog("Azimuth already homed. Tracking State -> Waiting");
             trackingState = TrackingState::WAITING;
             timing_adjustment = millis();
         }
         else
         {
+            comm.sendLog("Tracking State -> Azimuth");
             trackingState = TrackingState::AZIMUTH;
         }
     }
@@ -202,12 +251,13 @@ void loop()
     {
         servoMotor.stop();
         servoMotor.resetEncoderTracking();
+
+        comm.sendLog("Tracking State -> Waiting");
+
         trackingState = TrackingState::WAITING;
         timing_adjustment = millis();
     }
 }
-
-bool isRelayLow = true;
 
 void handleJoystick()
 {
@@ -231,6 +281,7 @@ void handleJoystick()
     // Home panel back to 180 degrees forward
     if (digitalRead(JOYSTICK_BUTTON_PIN) == 0)
     {
+        comm.sendLog("Running home sequence");
         int diff = 180 - servoMotor.getAzimuthFromCounter();
 
         servoMotor.initEncoderTracking(diff);
@@ -253,8 +304,8 @@ void handleJoystick()
             ;
         linearActuator.stop();
 
-        // This will probably be used when the operator wants to cease data collection for a day.
-        // This delay gives a pause to allow the operator to power down the system before it starts tracking again.
-        delay(10000);
+        // Delay so operator has ample time to shut system off, as this home sequence will probably be used
+        // when the operator wants to cease data collection at the end of the day.
+        delay(20000);
     }
 }

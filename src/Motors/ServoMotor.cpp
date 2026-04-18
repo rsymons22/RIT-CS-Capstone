@@ -7,12 +7,12 @@ void ServoMotor::setup()
     _motor.enableTorque();
 
     _count = INT32_MAX;
+    _atPosition = false;
 
-    pinMode(ENCODER_PINA, INPUT_PULLUP);
-    pinMode(ENCODER_PINB, INPUT_PULLUP);
+    _encoder = new RotaryEncoder(ENCODER_PINA, ENCODER_PINB, RotaryEncoder::LatchMode::TWO03);
 
-    attachInterruptParam(digitalPinToInterrupt(ENCODER_PINA), handleInterruptA, RISING, this);
-    attachInterruptParam(digitalPinToInterrupt(ENCODER_PINB), handleInterruptB, RISING, this);
+    attachInterruptParam(digitalPinToInterrupt(ENCODER_PINA), handleInterrupt, CHANGE, this);
+    attachInterruptParam(digitalPinToInterrupt(ENCODER_PINB), handleInterrupt, CHANGE, this);
 }
 
 void ServoMotor::stop()
@@ -23,17 +23,23 @@ void ServoMotor::stop()
 void ServoMotor::spin(int dir, double speed)
 {
     _motor.setMotorMode(1000 * speed * (dir ? 1 : -1));
+    _dir = dir;
 }
 
 void ServoMotor::initEncoderTracking(int degreeDiff)
 {
-    _count = _counter + degreeDiff * ENCODER_COUNTS_PER_DEGREE;
     _atPosition = false;
+    _count = constrain(getPosition() + degreeDiff * ENCODER_COUNTS_PER_DEGREE, -ENCODER_MINMAX, ENCODER_MINMAX);
 }
 
 bool ServoMotor::atPosition()
 {
     return _atPosition;
+}
+
+long ServoMotor::getPosition()
+{
+    return -1 * _encoder->getPosition();
 }
 
 void ServoMotor::resetEncoderTracking()
@@ -43,42 +49,24 @@ void ServoMotor::resetEncoderTracking()
 
 int ServoMotor::getAzimuthFromCounter()
 {
-    return 180 + _counter / ENCODER_COUNTS_PER_DEGREE;
+    return 180 + getPosition() / ENCODER_COUNTS_PER_DEGREE;
 }
 
-void handleInterruptA(void *param)
+ServoMotor::~ServoMotor()
+{
+    stop();
+}
+
+void handleInterrupt(void *param)
 {
     ServoMotor *m = static_cast<ServoMotor *>(param);
 
-    if (digitalRead(ENCODER_PINB) == LOW)
-    {
-        m->_counter--;
-    }
-    else
-    {
-        m->_counter++;
-    }
+    m->_encoder->tick();
 
-    if (m->_counter == m->_count)
-    {
-        m->_atPosition = true;
-    }
-}
+    long pos = m->getPosition();
 
-void handleInterruptB(void *param)
-{
-    ServoMotor *m = static_cast<ServoMotor *>(param);
-
-    if (digitalRead(ENCODER_PINA) == LOW)
-    {
-        m->_counter++;
-    }
-    else
-    {
-        m->_counter--;
-    }
-
-    if (m->_counter == m->_count)
+    if (((m->_dir == 1) && (pos >= m->_count)) ||
+        ((m->_dir == 0) && (pos <= m->_count)))
     {
         m->_atPosition = true;
     }

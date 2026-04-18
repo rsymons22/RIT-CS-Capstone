@@ -16,17 +16,18 @@ private:
     MqttClient client = MqttClient(espClient);
     WiFiUDP Udp;
     NTPClient timeClient = NTPClient(Udp);
+    bool _isDynamicPanel;
 
 public:
-    int setup();
+    int setup(bool isDynamicPanel);
     void poll();
-    void sendDataDynamic(double temp, double humidity, double tl_ldr,
-                         double bl_ldr, double tr_ldr, double br_ldr, double az,
-                         double ze, double panelV, double panelA, double systemV, double systemA);
-    void sendDataStatic(double temp, double humidity, double tl_ldr,
-                        double bl_ldr, double tr_ldr, double br_ldr, double panelV, double panelA);
-
-    void setupRTC();
+    int sendDataDynamic(double temp, double humidity, double tl_ldr,
+                        double bl_ldr, double tr_ldr, double br_ldr, double az,
+                        double ze, double panelV, double panelA, double systemV, double systemA);
+    int sendDataStatic(double temp, double humidity, double tl_ldr,
+                       double bl_ldr, double tr_ldr, double br_ldr, double panelV, double panelA);
+    int sendLog(char *buffer);
+    unsigned long getTime();
 };
 
 #endif

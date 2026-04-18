@@ -1,26 +1,19 @@
 #include "Communication.h"
-
 void Communication::poll()
 {
     client.poll();
 }
 
-void Communication::setupRTC()
+unsigned long Communication::getTime()
 {
-    timeClient.begin();
     timeClient.update();
-    RTCTime startTime(timeClient.getEpochTime());
-    RTC.setTime(startTime);
+    return timeClient.getEpochTime();
 }
 
-void Communication::sendDataDynamic(double temp, double humidity, double tl_ldr, double bl_ldr, double tr_ldr, double br_ldr, double az, double ze, double panelV, double panelA, double systemV, double systemA)
+int Communication::sendDataDynamic(double temp, double humidity, double tl_ldr, double bl_ldr, double tr_ldr, double br_ldr, double az, double ze, double panelV, double panelA, double systemV, double systemA)
 {
     JsonDocument doc;
 
-    RTCTime currentTime;
-    RTC.getTime(currentTime);
-
-    doc["timestamp"] = currentTime.getUnixTime();
     doc["temp"] = temp;
     doc["humidity"] = humidity;
     doc["tl_ldr"] = tl_ldr;
@@ -36,17 +29,13 @@ void Communication::sendDataDynamic(double temp, double humidity, double tl_ldr,
 
     client.beginMessage("solar/dynamic");
     serializeJson(doc, client);
-    client.endMessage();
+    return client.endMessage();
 }
 
-void Communication::sendDataStatic(double temp, double humidity, double tl_ldr, double bl_ldr, double tr_ldr, double br_ldr, double panelV, double panelA)
+int Communication::sendDataStatic(double temp, double humidity, double tl_ldr, double bl_ldr, double tr_ldr, double br_ldr, double panelV, double panelA)
 {
     JsonDocument doc;
 
-    RTCTime currentTime;
-    RTC.getTime(currentTime);
-
-    doc["timestamp"] = currentTime.getUnixTime();
     doc["temp"] = temp;
     doc["humidity"] = humidity;
     doc["tl_ldr"] = tl_ldr;
@@ -58,11 +47,24 @@ void Communication::sendDataStatic(double temp, double humidity, double tl_ldr, 
 
     client.beginMessage("solar/static");
     serializeJson(doc, client);
-    client.endMessage();
+    return client.endMessage();
 }
 
-int Communication::setup()
+int Communication::sendLog(char *buffer)
 {
+    JsonDocument doc;
+
+    doc["system"] = _isDynamicPanel;
+    doc["message"] = buffer;
+
+    client.beginMessage("solar/logger");
+    serializeJson(doc, client);
+    return client.endMessage();
+}
+
+int Communication::setup(bool isDynamicPanel)
+{
+    _isDynamicPanel = isDynamicPanel;
     WiFi.begin(SECRET_SSID, SECRET_PASS);
 
     int attempts = 0;
@@ -86,6 +88,8 @@ int Communication::setup()
             return 2;
         attempts++;
     }
+
+    timeClient.begin();
 
     return 0;
 }
