@@ -21,22 +21,25 @@
         }
 
         document.getElementById("title").textContent = `Solar Data: ${date}`;
-        boldOptions = {
+        var fontOptions = {
             scales: {
                 y: {
                     ticks: {
                         font: {
-                            weight: 'bold'
+                            weight: 'bold',
+                            size: 20,
                         }
                     }
                 },
                 x: {
                     ticks: {
                         font: {
-                            weight: 'bold'
+                            weight: 'bold',
+                            size: 15
                         }
                     }
                 },
+
             }
         };
     </script>
@@ -115,7 +118,7 @@
                         backgroundColor: 'blue'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             new Chart(document.getElementById("dynamicPowerChart"), {
@@ -128,7 +131,7 @@
                         backgroundColor: 'orange'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const bin15TimestampUnion = [...new Set([
@@ -158,7 +161,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticPowerGen = dataStaticRaw.map(d => (d.panelV * d.panelA))
@@ -203,7 +206,7 @@
                         backgroundColor: 'orange'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             new Chart(document.getElementById("dynamicZenithChart"), {
@@ -216,7 +219,7 @@
                         backgroundColor: 'orange'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
 
@@ -230,7 +233,7 @@
                         backgroundColor: 'blue'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             new Chart(document.getElementById("dynamicLDRChart"), {
@@ -243,7 +246,7 @@
                         backgroundColor: 'orange'
                     }]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticLDRMap = toMap(dataStaticBin15, "avg_ldr");
@@ -266,7 +269,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticHorizLDRMap = toMap(dataStaticBin15, "avg_horizLDRDiff");
@@ -289,7 +292,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticVertLDRMap = toMap(dataStaticBin15, "avg_vertLDRDiff");
@@ -312,7 +315,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticTempMap = toMap(dataStaticBin15, "avg_temp");
@@ -335,7 +338,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
             const staticHumidityMap = toMap(dataStaticBin15, "avg_humidity");
@@ -358,7 +361,7 @@
                         }
                     ]
                 },
-                options: boldOptions
+                options: fontOptions
             });
 
         }).catch(err => {
