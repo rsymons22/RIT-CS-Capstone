@@ -52,6 +52,7 @@ int Communication::sendDataStatic(double temp, double humidity, double tl_ldr, d
 
 int Communication::sendLog(char *buffer)
 {
+    Serial.println(buffer);
     JsonDocument doc;
 
     doc["system"] = _isDynamicPanel;
