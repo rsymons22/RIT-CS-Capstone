@@ -55,6 +55,10 @@
 
     <p id="energyParagraph"></p>
 
+    <h2>Dynamic System Percent Increase (15 Minute Bins)</h2>
+    <p>*Negative Overall Generation Data Points Removed</p>
+    <canvas id="dynamicPercentChart" width="800" height="350"></canvas>
+
     <h2>Dynamic Azimuth (1 Minute Bins)</h2>
     <canvas id="dynamicAzimuthChart" width="800" height="350"></canvas>
 
@@ -196,13 +200,31 @@
                 Dynamic Overall: ${(dynamicGenKWH - dynamicConKWH).toFixed(5)} kWh
             `
 
+            new Chart(document.getElementById("dynamicPercentChart"), {
+                type: "bar",
+                data: {
+                    labels: bin15Labels,
+                    datasets: [
+                        {
+                            label: "Dynamic Percent Increase (%)",
+                            data: bin15TimestampUnion.map(ts => {
+                                if (dynamicPowerMap[ts] < 0) return null
+                                return (((dynamicPowerMap[ts] - staticPowerMap[ts]) / staticPowerMap[ts]) * 100) ?? null
+                            }),
+                            backgroundColor: 'orange'
+                        }
+                    ]
+                },
+                options: fontOptions
+            });
+
             new Chart(document.getElementById("dynamicAzimuthChart"), {
                 type: "bar",
                 data: {
                     labels: timestampMap(dataDynamicBin1),
                     datasets: [{
                         label: "Azimuth (°)",
-                        data: dataDynamicBin1.map(d => d.avg_azimuth),
+                        data: dataDynamicBin1.map(d => d.avg_azimuth < 90 ? 90 : d.avg_azimuth),
                         backgroundColor: 'orange'
                     }]
                 },
