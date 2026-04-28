@@ -26,7 +26,11 @@
         github repo, and visualized on this pages website.
     </p>
 
-    <img src="images/setup.jpg" width="800">
+    <!-- <img src="assets/setup.jpg" width="800"> -->
+
+    <p>4/27/2026 Video</p>
+
+    <video src="assets/capstonevideo.mp4" width="900" controls></video>
 
     <h2>Available Days</h2>
     <ul id="day-list"></ul>
@@ -40,7 +44,8 @@
             { date: "04-22-2026", note: "Sunny most of the days, technical issues prevented evening data collection." },
             { date: "04-23-2026", note: "Cloudy day." },
             { date: "04-24-2026", note: "Cloudy day, especially in the morning." },
-            { date: "04-26-2026", note: "Mildly cloudy day." }
+            { date: "04-26-2026", note: "Mildly cloudy day." },
+            { icon: "⭐", date: "04-27-2026", note: "Sunny day." }
         ];
 
         const list = document.getElementById("day-list");
@@ -50,11 +55,12 @@
             const link = document.createElement("a");
 
             link.href = `day.html?date=${day.date}`;
-            link.textContent = day.date;
+            link.textContent = day.icon ? `${day.icon}${day.date}` : day.date;
 
             li.appendChild(link);
 
             if (day.note) {
+
                 const note = document.createElement("span");
                 note.textContent = ` — ${day.note}`;
                 note.style.color = "gray";

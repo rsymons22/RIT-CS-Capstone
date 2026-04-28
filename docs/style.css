@@ -38,3 +38,8 @@ img {
     margin-right: auto;
     width: 50%;
 }
+
+video {
+    display: block;
+    margin: 0 auto;
+}
