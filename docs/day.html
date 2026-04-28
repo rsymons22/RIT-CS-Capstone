@@ -53,7 +53,7 @@
     <h2>Side-by-Side Power (15 Minute Bins)</h2>
     <canvas id="combinedPowerChart" width="800" height="350"></canvas>
 
-    <p id="energyParagraph"></p>
+    <p id="energyParagraph" class="centered-text"></p>
 
     <h2>Dynamic System Percent Increase (15 Minute Bins)</h2>
     <p>*Negative Overall Generation Data Points Removed</p>
@@ -85,14 +85,6 @@
 
     <h2>Side-by-Side Humidity (15 Minute Bins)</h2>
     <canvas id="humidityChart" width="800" height="350"></canvas>
-
-    <!-- Code for local fetching -->
-    <!-- fetch(`../data/static_${date}_bin15.json`).then(res => res.json()),
-    fetch(`../data/dynamic_${date}_bin15.json`).then(res => res.json()),
-    fetch(`../data/static_${date}_bin1.json`).then(res => res.json()),
-    fetch(`../data/dynamic_${date}_bin1.json`).then(res => res.json()),
-    fetch(`../data/static_${date}_raw.json`).then(res => res.json()),
-    fetch(`../data/dynamic_${date}_raw.json`).then(res => res.json()) -->
 
     <script>
         Promise.all([
