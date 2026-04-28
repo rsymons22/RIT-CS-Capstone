@@ -12,12 +12,14 @@
     <p>
         This dashboard displays power generation data collected from two solar panel systems.
         One system is static, it's zenith angle and azimuth angle fixed for the entirety of a day's worth of data
-        collection.
-        The zenith angle is approximately 43°, which is the latitude of Rochester New York. The azimuth (heading)
+        collection. The zenith angle is approximately 43°, which is the latitude of Rochester New York. The azimuth
+        (heading)
         is due south at 180°. The dynamic system uses a linear actuator and a servo motor to rotate and spin the panel
         towards the sun in the sky. The base on which the panel is mounted on is assumed to begin at 180° so that the
         panel can know it's relative angle.
+    </p>
 
+    <p>
         An Arduino Uno R4 Wifi acts as the computational unit on each system, collecting sensor data and performing
         adjustments on the dynamic system. Approximately every minute, the arduino sends sensor telemetry to a
         Raspberry Pi server. A Raspberry Pi will act as both a broker for MQTT communication, and as a subscriber to
@@ -28,11 +30,11 @@
 
     <!-- <img src="assets/setup.jpg" width="800"> -->
 
-    <p>4/27/2026 Video</p>
+    <p class="centered-text bold-text">4/27/2026 Timelapse Video</p>
 
-    <video src="assets/capstonevideo.mp4" width="900" controls></video>
+    <video src="assets/capstonevideo.mp4" width="900" controls preload="metadata"></video>
 
-    <h2>Available Days</h2>
+    <h2 class="left-text">Available Days</h2>
     <ul id="day-list"></ul>
 
     <script>
@@ -55,14 +57,14 @@
             const link = document.createElement("a");
 
             link.href = `day.html?date=${day.date}`;
-            link.textContent = day.icon ? `${day.icon}${day.date}` : day.date;
+            link.textContent = day.date;
 
             li.appendChild(link);
 
             if (day.note) {
 
                 const note = document.createElement("span");
-                note.textContent = ` — ${day.note}`;
+                note.textContent = day.icon ? `— ${day.icon} ${day.note}` : ` — ${day.note}`;
                 note.style.color = "gray";
                 note.style.marginLeft = "8px";
 
