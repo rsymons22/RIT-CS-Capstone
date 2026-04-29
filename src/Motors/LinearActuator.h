@@ -1,9 +1,8 @@
 #ifndef _LINEAR_ACTUATOR_H_
 #define _LINEAR_ACTUATOR_H_
 
-#include "functional"
+#include <Arduino.h>
 #include "constants.h"
-#include "..\Sensors\I2CMux.h"
 
 class LinearActuator
 {

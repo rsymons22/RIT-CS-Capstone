@@ -1,5 +1,4 @@
 #include "LinearActuator.h"
-#include <Arduino.h>
 
 void LinearActuator::setup()
 {

@@ -1,6 +1,7 @@
 #ifndef _POWER_MONITOR_H_
 #define _POWER_MONITOR_H_
 
+#include <Wire.h>
 #include <Adafruit_INA3221.h>
 #include <constants.h>
 

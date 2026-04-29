@@ -2,8 +2,9 @@
 
 bool zenithBounds(bool isRetracting, double sunZenith, double panelZenith)
 {
-    return (isRetracting && (panelZenith <= sunZenith || panelZenith <= ZENITH_MIN)) ||
-           (!isRetracting && (panelZenith >= sunZenith || panelZenith >= ZENITH_MAX));
+    const double TOLERANCE = 1;
+    return (isRetracting && (panelZenith <= sunZenith + TOLERANCE || panelZenith <= ZENITH_MIN)) ||
+           (!isRetracting && (panelZenith >= sunZenith - TOLERANCE || panelZenith >= ZENITH_MAX));
 }
 
 bool azimuthBounds(bool panelSpinsCW, double sunAzimuth, double panelAzimuth)
@@ -40,7 +41,7 @@ bool SunTracking::trackZenithSetup(I2CMux &i2cMux, LinearActuator &la, Communica
 
     isRetracting = (sunZenith - panelZenith) < 0;
 
-    if (zenithBounds(isRetracting, round(sunZenith), round(panelZenith)))
+    if (zenithBounds(isRetracting, sunZenith, panelZenith))
         return 1;
 
     if (isRetracting)
@@ -55,7 +56,7 @@ bool SunTracking::trackZenith(I2CMux &i2cMux, LinearActuator &la)
 {
     double panelZenith = i2cMux.getZenith();
 
-    if (zenithBounds(isRetracting, round(sunZenith), round(panelZenith)))
+    if (zenithBounds(isRetracting, sunZenith, panelZenith))
     {
         la.stop();
         return 1;

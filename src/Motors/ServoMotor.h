@@ -4,7 +4,6 @@
 #include "constants.h"
 #include "Arduino.h"
 #include "LX16A-bus.h"
-#include "RotaryEncoder.h"
 
 void handleInterrupt(void *param);
 
@@ -12,10 +11,10 @@ class ServoMotor
 {
 private:
     LX16A _motor = LX16A(1, Serial1);
-    RotaryEncoder *_encoder = nullptr;
     volatile bool _atPosition;
     int _count;
     int _dir;
+    int _counter;
 
 public:
     void setup();
@@ -23,7 +22,6 @@ public:
     void spin(int dir, double speed);
     void initEncoderTracking(int degreeDiff);
     bool atPosition();
-    long getPosition();
     void resetEncoderTracking();
     int getAzimuthFromCounter();
     ~ServoMotor();

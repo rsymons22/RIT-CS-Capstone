@@ -1,4 +1,5 @@
 #include "Communication.h"
+
 void Communication::poll()
 {
     client.poll();
